@@ -5,11 +5,9 @@ import dotenv from 'dotenv';
 dotenv.config();
 const { JWT_SECRET } = process.env;
 import bcrypt from 'bcryptjs';
+import { UserType } from '../types/userType';
+import MessageModel from '../models/MessageModel';
 const bcryptSalt = bcrypt.genSaltSync(10);
-
-export function getTest(req: Request, res: Response) {
-  res.json('Hello World!');
-}
 
 export function getProfile(req: Request, res: Response) {
   const { token } = req.cookies;
@@ -22,6 +20,36 @@ export function getProfile(req: Request, res: Response) {
     if (err) throw err;
     res.json(userData);
   });
+}
+
+async function getUserData(req: Request) {
+  return new Promise((resolve, reject) => {
+    const { token } = req.cookies;
+    if (token) {
+      jwt.verify(token, JWT_SECRET || '', {}, (err, userData) => {
+        if (err) throw err;
+        resolve(userData);
+      });
+    } else {
+      reject({ error: 'Unauthorized' });
+    }
+  });
+}
+
+export async function getUsers(req: Request, res: Response) {
+  const users = await UserModel.find({}, { _id: 1, username: 1 });
+  res.json(users);
+}
+
+export async function getMessages(req: Request, res: Response) {
+  const { userId } = req.params;
+  const userData = (await getUserData(req)) as UserType;
+  const messages = await MessageModel.find({
+    sender: { $in: [userData.userId, userId] },
+    recipient: { $in: [userData.userId, userId] },
+  }).sort({ createdAt: 1 });
+
+  res.json(messages);
 }
 
 export async function register(req: Request, res: Response) {
@@ -62,4 +90,8 @@ export async function login(req: Request, res: Response) {
     .cookie('token', token, { sameSite: 'none', secure: true })
     .status(201)
     .json({ id: foundUser });
+}
+
+export async function logout(req: Request, res: Response) {
+  res.cookie('token', '', { sameSite: 'none', secure: true }).json('ok');
 }

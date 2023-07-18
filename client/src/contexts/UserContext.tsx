@@ -23,7 +23,7 @@ export function UserContextProvider({ children }: Props) {
     axios
       .get<UserType>('/profile')
       .then((res) => {
-        setId(res.data.id);
+        setId(res.data.userId!);
         setUsername(res.data.username);
       })
       .catch((err) => {
